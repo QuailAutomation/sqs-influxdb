@@ -1,0 +1,10 @@
+sqs-water:
+  image: 'craigham/rpi-sqs-influx'
+  restart: always
+  environment:
+    GELF_SERVER_IP: 192.168.1.30 
+    INFLUX_IP: 192.168.1.120
+  volumes:
+    - '/etc/localtime:/etc/localtime:ro'
+    - '/etc/timezone:/etc/timezone:ro'
+    - '/home/craigh/.aws:/home/pi/.aws'
