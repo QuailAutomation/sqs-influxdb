@@ -1,7 +1,7 @@
 version: '3.1'
 services:
   sqs-water:
-    image: 'rpi-sqs-influx'
+    image: 'craigham/rpi-sqs-influx'
     restart: always
     environment:
       GELF_SERVER_IP: 192.168.1.25
@@ -12,14 +12,19 @@ services:
     secrets:
       - aws_access_key_id 
       - aws_secret_access_key 
+      - influx_waterdb_user
+      - influx_waterdb_password
     deploy:
       placement:
         constraints:
           - node.role == manager
-    #- '/home/craigh/.aws:/home/pi/.aws'
 
 secrets:
   aws_access_key_id:
     external: true
   aws_secret_access_key:
     external: true 
+  influx_waterdb_user:
+    external: true
+  influx_waterdb_password:
+    external: true
