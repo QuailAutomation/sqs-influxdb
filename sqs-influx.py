@@ -79,8 +79,17 @@ def parse(line):
     except ValueError:
         log.error('Invalid float for value: %s' % current_value)
 
+def get_secret(secret_name):
+    try:
+        with open('/run/secrets/{0}'.format(secret_name), 'r') as secret_file:
+            return secret_file.read()
+    except IOError:
+        return None
+
+access_key_id = get_secret('aws_access_key_id')
+secret_access_key = get_secret('aws_secret_access_key')
 # Create SQS client
-sqs = boto3.client('sqs')
+sqs = boto3.client('sqs',aws_access_key_id=access_key_id,aws_secret_access_key=secret_access_key)
 
 queue_url = 'https://sqs.us-west-2.amazonaws.com/845159206739/sensors-maui-water'
 log.debug("Listening to topic: {}".format(queue_url))
