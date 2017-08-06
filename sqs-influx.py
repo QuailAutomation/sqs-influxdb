@@ -4,6 +4,7 @@ import os
 from influxdb import InfluxDBClient
 import boto3
 
+
 try:
     import graypy
 except ImportError:
@@ -12,13 +13,13 @@ except ImportError:
 # if we have log configuration for log servers, add that, otherwise let's use basic logging
 isLogConfigInfo = False
 
-gelf_url = os.getenv('GELF_SERVER_IP', None)
+gelf_url = os.getenv('GELF_SERVER_IP', '192.168.1.25')
 influx_url = os.getenv('INFLUX_IP', '192.168.1.122')
 
 log = logging.getLogger(__name__)
 
 if gelf_url is not None:
-    handler = graypy.GELFHandler(gelf_url, 12201, localname='water-influxdb')
+    handler = graypy.GELFHandler(gelf_url, 12201, localname='water-sqs-influx')
     log.addHandler(handler)
     isLogConfigInfo = True
 
@@ -26,6 +27,7 @@ if not isLogConfigInfo:
     logging.basicConfig(level=logging.DEBUG)
 
 log.setLevel(logging.DEBUG)
+log.debug("Starting sqs to influx")
 lastWriteMap = {}
 influx_client = InfluxDBClient(influx_url, 8086, 'water_user', 'aquaman', 'water_readings')
 
@@ -75,12 +77,13 @@ def parse(line):
         influx_client.write_points(json_body)
         log.debug("write to influxdb")
     except ValueError:
-        print('Invalid float for value: %s' % current_value)
+        log.error('Invalid float for value: %s' % current_value)
 
 # Create SQS client
 sqs = boto3.client('sqs')
 
 queue_url = 'https://sqs.us-west-2.amazonaws.com/845159206739/sensors-maui-water'
+log.debug("Listening to topic: {}".format(queue_url))
 while True:
     # Long poll for message on provided SQS queue
     response = sqs.receive_message(
@@ -94,7 +97,7 @@ while True:
         ],
         WaitTimeSeconds=20
     )
-    print 'Response: {}'.format(response)
+    log.debug('Response: {}'.format(response))
     if response != None:
         try:
             message = response['Messages'][0]
@@ -110,4 +113,4 @@ while True:
             )
         except KeyError:
             pass
-    print 'Requesting another message'
+    log.debug('Requesting another message')
