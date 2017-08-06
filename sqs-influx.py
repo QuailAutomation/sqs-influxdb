@@ -28,8 +28,22 @@ if not isLogConfigInfo:
 
 log.setLevel(logging.DEBUG)
 log.debug("Starting sqs to influx")
+
+# load swarm secrets
+def get_secret(secret_name):
+    try:
+        with open('/run/secrets/{0}'.format(secret_name), 'r') as secret_file:
+            return secret_file.read().rstrip()
+    except IOError:
+        return None
+
+access_key_id = get_secret('aws_access_key_id')
+secret_access_key = get_secret('aws_secret_access_key')
+influx_waterdb_user = get_secret('influx_waterdb_user')
+influx_waterdb_password = get_secret('influx_waterdb_password')
+
 lastWriteMap = {}
-influx_client = InfluxDBClient(influx_url, 8086, 'water_user', 'aquaman', 'water_readings')
+influx_client = InfluxDBClient(influx_url, 8086, influx_waterdb_user,influx_waterdb_password, 'water_readings')
 
 def parse(line):
     log.debug('Received line: ' + line)
@@ -79,15 +93,6 @@ def parse(line):
     except ValueError:
         log.error('Invalid float for value: %s' % current_value)
 
-def get_secret(secret_name):
-    try:
-        with open('/run/secrets/{0}'.format(secret_name), 'r') as secret_file:
-            return secret_file.read()
-    except IOError:
-        return None
-
-access_key_id = get_secret('aws_access_key_id').rstrip()
-secret_access_key = get_secret('aws_secret_access_key').rstrip()
 # Create SQS client
 sqs = boto3.client('sqs',aws_access_key_id=access_key_id,aws_secret_access_key=secret_access_key,region_name='us-west-2')
 
