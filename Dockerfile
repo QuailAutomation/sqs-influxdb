@@ -13,12 +13,13 @@ RUN apt-get update && apt-get install -y \
 # Install Python requirements
 ADD requirements.txt /tmp/requirements.txt
 RUN pip install -r /tmp/requirements.txt
-
 # Create runtime user
 RUN useradd pi
 RUN mkdir -p /home/pi
 ADD sqs-influx.py /home/pi/sqs-influx.py
-RUN chown -R pi /home/pi/
+RUN mkdir -p /home/pi/.aws
+ADD config /home/pi/.aws/config
+
 USER pi
 
 
