@@ -20,8 +20,8 @@ RUN pip install -r /tmp/requirements.txt
 RUN useradd pi
 RUN mkdir -p /home/pi
 ADD sqs-influx.py /home/pi/sqs-influx.py
-RUN mkdir -p /home/pi/.aws
-ADD config /home/pi/.aws/config
+#RUN mkdir -p /home/pi/.aws
+#ADD config /home/pi/.aws/config
 
 USER pi
 
