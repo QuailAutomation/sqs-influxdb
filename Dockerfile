@@ -2,6 +2,9 @@ FROM apicht/rpi-golang:latest
 #FROM armv7/armhf-ubuntu 
 MAINTAINER craig
 
+ARG git_commit
+ARG version
+
 RUN apt-get update && apt-get install -y \
     python2.7 \
     python-pip \
@@ -22,5 +25,7 @@ ADD config /home/pi/.aws/config
 
 USER pi
 
+LABEL git-commit=$git_commit
+LABEL version=$version
 
 CMD ["python","/home/pi/sqs-influx.py"]
