@@ -1,0 +1,37 @@
+language: python
+
+python:
+  - 2.7
+# use this to control what branches get built.
+# http://docs.shippable.com/ci/advancedOptions/branches/
+branches:
+  only:
+    - master
+
+# using pre-defined build variables
+# full list http://docs.shippable.com/ci/advancedOptions/environmentVariables/
+env:
+  global:
+    - DOCKER_REPO=rpi-sqs-influx
+    - DOCKER_ACC=craigham # {account name}
+    - CURRENT_VERSION=0.1.$BUILD_NUMBER
+
+build:
+  ci:
+    - SHORT_COMMIT="$(echo $COMMIT | cut -b -7 )"
+  # http://docs.shippable.com/ci/shippableyml/#post_ci
+  post_ci:
+    - docker run --rm --privileged multiarch/qemu-user-static:register --reset
+    - docker build -t $DOCKER_ACC/$DOCKER_REPO --build-arg git_commit=$SHORT_COMMIT --build-arg version=$CURRENT_VERSION .
+    - docker tag $DOCKER_ACC/$DOCKER_REPO $DOCKER_ACC/$DOCKER_REPO:$CURRENT_VERSION
+    - docker push $DOCKER_ACC/$DOCKER_REPO:$CURRENT_VERSION
+    - docker push $DOCKER_ACC/$DOCKER_REPO
+
+# Integrations are used to connect external resources to CI
+# http://docs.shippable.com/integrations/overview/
+integrations:
+  # adding docker hub integration so that credentials are available to CI Job
+  # http://docs.shippable.com/integrations/imageRegistries/dockerHub/
+  hub:
+    - integrationName: docker-hub-craigham
+      type: docker
