@@ -22,7 +22,7 @@ build:
   # http://docs.shippable.com/ci/shippableyml/#post_ci
   post_ci:
     - docker run --rm --privileged multiarch/qemu-user-static:register --reset
-    - docker build -t $DOCKER_ACC/$DOCKER_REPO --build-arg git_commit=$SHORT_COMMIT --build-arg version=$CURRENT_VERSION .
+    - docker build -t $DOCKER_ACC/$DOCKER_REPO:shippable --build-arg git_commit=$SHORT_COMMIT --build-arg version=$CURRENT_VERSION .
     - docker push $DOCKER_ACC/$DOCKER_REPO:shippable
     - wget https://5028-88013053-gh.circle-artifacts.com/1/work/build/docker-linux-amd64
     - mv docker-linux-amd64 docker
