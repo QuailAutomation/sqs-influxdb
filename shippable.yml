@@ -23,9 +23,18 @@ build:
   post_ci:
     - docker run --rm --privileged multiarch/qemu-user-static:register --reset
     - docker build -t $DOCKER_ACC/$DOCKER_REPO --build-arg git_commit=$SHORT_COMMIT --build-arg version=$CURRENT_VERSION .
-    - docker tag $DOCKER_ACC/$DOCKER_REPO $DOCKER_ACC/$DOCKER_REPO:$CURRENT_VERSION
-    - docker push $DOCKER_ACC/$DOCKER_REPO:$CURRENT_VERSION
-    - docker push $DOCKER_ACC/$DOCKER_REPO
+    - docker push $DOCKER_ACC/$DOCKER_REPO:shippable
+    - wget https://5028-88013053-gh.circle-artifacts.com/1/work/build/docker-linux-amd64
+    - mv docker-linux-amd64 docker
+    - chmod +x docker
+    - ./docker -D manifest create "$DOCKER_ACC/$DOCKER_REPO:$CURRENT_VERSION" "$DOCKER_ACC/$DOCKER_REPO:shippable"
+    - ./docker manifest annotate "$DOCKER_ACC/$DOCKER_REPO:$CURRENT_VERSION" "$DOCKER_ACC/$DOCKER_REPO:shippable" --os linux --arch arm
+    - ./docker manifest push "$DOCKER_ACC/$DOCKER_REPO:$CURRENT_VERSION"
+    # latest now
+    - ./docker -D manifest create "$DOCKER_ACC/$DOCKER_REPO:latest" "$DOCKER_ACC/$DOCKER_REPO:shippable"
+    - ./docker manifest annotate "$DOCKER_ACC/$DOCKER_REPO:latest" "$DOCKER_ACC/$DOCKER_REPO:shippable" --os linux --arch arm
+    - ./docker manifest push "$DOCKER_ACC/$DOCKER_REPO:latest"
+
 
 # Integrations are used to connect external resources to CI
 # http://docs.shippable.com/integrations/overview/
