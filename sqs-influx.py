@@ -1,7 +1,11 @@
 from datetime import datetime, timedelta
 import logging
 import os
+import time
+import thread
 from influxdb import InfluxDBClient
+from flask import Flask, jsonify, Response
+from prometheus_client import Summary, Counter, Gauge, generate_latest
 import boto3
 
 
@@ -29,6 +33,15 @@ if not isLogConfigInfo:
 log.setLevel(logging.DEBUG)
 log.debug("Starting sqs to influx")
 
+# instrumentation
+CONTENT_TYPE_LATEST = str('text/plain; version=0.0.4; charset=utf-8')
+SENSOR_SAMPLES = Counter('maui_water_samples_submitted', 'Number of samples processed')
+INFLUXDB_SUBMIT_DURATION = Summary('maui_water_influxdb_operation_duration',
+                           'Latency of submitting to InfluxDB',['operation'])
+INFLUXDB_EXCEPTIONS = Counter('maui_water_mqtt_submit_exceptions_total',
+                             'Exceptions thrown submitting to mqtt',['operation'])
+
+
 # load swarm secrets
 def get_secret(secret_name):
     try:
@@ -37,10 +50,10 @@ def get_secret(secret_name):
     except IOError:
         return None
 
-access_key_id = get_secret('aws_access_key_id')
-secret_access_key = get_secret('aws_secret_access_key')
-influx_waterdb_user = get_secret('influx_waterdb_user')
-influx_waterdb_password = get_secret('influx_waterdb_password')
+access_key_id = get_secret('aws_access_key_id') or os.getenv('aws_access_key_id')
+secret_access_key = get_secret('aws_secret_access_key') or os.getenv('aws_secret_access_key')
+influx_waterdb_user = get_secret('influx_waterdb_user') or os.getenv('influx_waterdb_user')
+influx_waterdb_password = get_secret('influx_waterdb_password') or os.getenv('influx_waterdb_password')
 
 lastWriteMap = {}
 influx_client = InfluxDBClient(influx_url, 8086, influx_waterdb_user,influx_waterdb_password, 'water_readings')
@@ -52,8 +65,9 @@ def parse(line):
     # should look up most recent reading
     query = 'SELECT * FROM water_usage GROUP BY * order by desc LIMIT 1'
 
+    startTime = time.time()
     result = influx_client.query(query)
-
+    INFLUXDB_SUBMIT_DURATION.labels(operation="select").observe(time.time() - startTime)
     time_format = "%Y-%m-%dT%H:%M:%S"
     if len(result) > 0:
         log.debug("last reading is: {0}".format(result))
@@ -88,7 +102,9 @@ def parse(line):
             }
         ]
         log.debug('json to write: %s ' % json_body)
+        startTime = time.time()
         influx_client.write_points(json_body)
+        INFLUXDB_SUBMIT_DURATION.labels(operation="write").observe(time.time() - startTime)
         log.debug("write to influxdb")
     except ValueError:
         log.error('Invalid float for value: %s' % current_value)
@@ -98,6 +114,21 @@ sqs = boto3.client('sqs',aws_access_key_id=access_key_id,aws_secret_access_key=s
 
 queue_url = 'https://sqs.us-west-2.amazonaws.com/845159206739/sensors-maui-water'
 log.debug("Listening to topic: {}".format(queue_url))
+
+app = Flask(__name__)
+
+
+@app.route('/metrics')
+def metrics():
+    return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
+
+
+def flask_thread():
+    app.run(host='0.0.0.0')
+
+thread.start_new_thread(flask_thread, ())
+
+# is is loop to poll SQS
 while True:
     # Long poll for message on provided SQS queue
     response = sqs.receive_message(
@@ -117,6 +148,7 @@ while True:
             message = response['Messages'][0]
             elements = message['Body'].split(',')
             if elements[3] == '33228599':
+                SENSOR_SAMPLES.inc()
                 parse(elements[7])
             receipt_handle = message['ReceiptHandle']
 
