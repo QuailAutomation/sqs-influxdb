@@ -9,6 +9,8 @@ services:
     volumes:
       - '/etc/localtime:/etc/localtime:ro'
       - '/etc/timezone:/etc/timezone:ro'
+    ports:
+      - "5060:5000"
     secrets:
       - aws_access_key_id 
       - aws_secret_access_key 

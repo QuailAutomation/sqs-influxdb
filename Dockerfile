@@ -28,4 +28,6 @@ USER pi
 LABEL git-commit=$git_commit
 LABEL version=$version
 
+EXPOSE 5000
+
 CMD ["python","/home/pi/sqs-influx.py"]
