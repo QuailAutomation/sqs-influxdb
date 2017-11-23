@@ -36,6 +36,7 @@ log.debug("Starting sqs to influx")
 # instrumentation
 CONTENT_TYPE_LATEST = str('text/plain; version=0.0.4; charset=utf-8')
 SENSOR_SAMPLES = Counter('maui_water_samples_submitted', 'Number of samples processed')
+WATER_METER_READING = Counter('maui_water_meter_reading', 'Reading of the water meter')
 INFLUXDB_SUBMIT_DURATION = Summary('maui_water_influxdb_operation_duration',
                            'Latency of submitting to InfluxDB',['operation'])
 INFLUXDB_EXCEPTIONS = Counter('maui_water_mqtt_submit_exceptions_total',
@@ -61,6 +62,7 @@ influx_client = InfluxDBClient(influx_url, 8086, influx_waterdb_user,influx_wate
 def parse(line):
     log.debug('Received line: ' + line)
     current_value = float(line)
+    WATER_METER_READING.set(current_value)
     now = datetime.utcnow()
     # should look up most recent reading
     query = 'SELECT * FROM water_usage GROUP BY * order by desc LIMIT 1'
