@@ -61,7 +61,7 @@ influx_client = InfluxDBClient(influx_url, 8086, influx_waterdb_user,influx_wate
 
 def parse(line):
     log.debug('Received line: ' + line)
-    current_value = float(line)
+    current_value = int(line)
     WATER_METER_READING.set(current_value)
     now = datetime.utcnow()
     # should look up most recent reading
@@ -161,4 +161,6 @@ while True:
             )
         except KeyError:
             pass
+        except Exception as e:
+            log.exception(e)
     log.debug('Requesting another message')
