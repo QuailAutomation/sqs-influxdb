@@ -84,8 +84,7 @@ def parse(line):
         recent_time = datetime.strptime(first_point["time"][:19],time_format)
         log.debug ('recent time: {0}'.format(recent_time))
         log.debug('Elapsed time: {0}'.format(int((now - recent_time).total_seconds() // 60)))  # minutes
-        usage = float(current_value-previous_value)
-        log.debug('Value diff is: {0}'.format(usage))
+        usage = int(current_value-previous_value)
         log.debug('Value diff is: {0}'.format(usage))
     else:
         usage = int(0.0)
