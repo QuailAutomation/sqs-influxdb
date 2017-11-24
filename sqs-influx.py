@@ -109,7 +109,7 @@ def parse(line):
         INFLUXDB_SUBMIT_DURATION.labels(operation="write").observe(time.time() - startTime)
         log.debug("write to influxdb")
     except ValueError as e:
-        log.exception('Invalid float for value: {}, error: {}'.format(current_value,e))
+        log.exception('Invalid int for value: {}, error: {}'.format(current_value,e))
 
 # Create SQS client
 sqs = boto3.client('sqs',aws_access_key_id=access_key_id,aws_secret_access_key=secret_access_key,region_name='us-west-2')
