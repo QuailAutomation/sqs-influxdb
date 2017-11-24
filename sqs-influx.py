@@ -4,7 +4,7 @@ import os
 import time
 import thread
 from influxdb import InfluxDBClient
-from flask import Flask, jsonify, Response
+from flask import Flask, Response
 from prometheus_client import Summary, Counter, Gauge, generate_latest
 import boto3
 
@@ -86,8 +86,9 @@ def parse(line):
         log.debug('Elapsed time: {0}'.format(int((now - recent_time).total_seconds() // 60)))  # minutes
         usage = float(current_value-previous_value)
         log.debug('Value diff is: {0}'.format(usage))
+        log.debug('Value diff is: {0}'.format(usage))
     else:
-        usage = float(0.0)
+        usage = int(0.0)
     try:
         json_body = [
             {
@@ -108,8 +109,8 @@ def parse(line):
         influx_client.write_points(json_body)
         INFLUXDB_SUBMIT_DURATION.labels(operation="write").observe(time.time() - startTime)
         log.debug("write to influxdb")
-    except ValueError:
-        log.error('Invalid float for value: %s' % current_value)
+    except ValueError as e:
+        log.exception('Invalid float for value: {}, error: {}'.format(current_value,e))
 
 # Create SQS client
 sqs = boto3.client('sqs',aws_access_key_id=access_key_id,aws_secret_access_key=secret_access_key,region_name='us-west-2')
