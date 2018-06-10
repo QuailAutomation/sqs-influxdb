@@ -148,7 +148,7 @@ while True:
             SENSOR_SAMPLES.labels(**label_dict).inc()
             if elements[3] == '33228599':
                 parse(elements[7])
-            log.debug("Received meter reading for: {}".format(elements[7]))
+            log.debug("Received meter reading for: {}".format(elements[3]))
             receipt_handle = message['ReceiptHandle']
 
 
