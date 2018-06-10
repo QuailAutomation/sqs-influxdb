@@ -8,30 +8,23 @@ from flask import Flask, Response
 from prometheus_client import Summary, Counter, Gauge, generate_latest
 import boto3
 
-
-try:
-    import graypy
-except ImportError:
-    pass
-
-# if we have log configuration for log servers, add that, otherwise let's use basic logging
-isLogConfigInfo = False
-
-gelf_url = os.getenv('GELF_SERVER_IP', '192.168.1.25')
-influx_url = os.getenv('INFLUX_IP', '192.168.1.122')
-
 log = logging.getLogger(__name__)
 
-if gelf_url is not None:
-    handler = graypy.GELFHandler(gelf_url, 12201, localname='water-sqs-influx')
-    log.addHandler(handler)
-    isLogConfigInfo = True
-
-if not isLogConfigInfo:
+# if gelf url is set and graypy import avail let's log there
+try:
+    import graypy
+    gelf_url = os.getenv('GELF_SERVER_IP', None)
+    if gelf_url is not None:
+        handler = graypy.GELFHandler(gelf_url, 12201, localname='water-sqs-influx')
+        log.addHandler(handler)
+except ImportError:
     logging.basicConfig(level=logging.DEBUG)
 
 log.setLevel(logging.DEBUG)
 log.debug("Starting sqs to influx")
+
+
+influx_url = os.getenv('INFLUX_IP', '192.168.1.122')
 
 # instrumentation
 CONTENT_TYPE_LATEST = str('text/plain; version=0.0.4; charset=utf-8')
@@ -58,6 +51,7 @@ influx_waterdb_password = get_secret('influx_waterdb_password') or os.getenv('in
 
 lastWriteMap = {}
 influx_client = InfluxDBClient(influx_url, 8086, influx_waterdb_user,influx_waterdb_password, 'water_readings')
+
 
 def parse(line):
     log.debug('Received line: ' + line)
@@ -142,17 +136,20 @@ while True:
         MessageAttributeNames=[
             'All'
         ],
-        WaitTimeSeconds=20
+        WaitTimeSeconds=60
     )
     log.debug('Response: {}'.format(response))
-    if response != None:
+    if response is not None:
         try:
+            SENSOR_SAMPLES.inc()
             message = response['Messages'][0]
             elements = message['Body'].split(',')
+
             if elements[3] == '33228599':
-                SENSOR_SAMPLES.inc()
                 parse(elements[7])
+            log.debug("Received meter reading for: {}".format(elements[7]))
             receipt_handle = message['ReceiptHandle']
+
 
             # Delete received message from queue
             sqs.delete_message(
