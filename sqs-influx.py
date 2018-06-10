@@ -28,7 +28,7 @@ influx_url = os.getenv('INFLUX_IP', '192.168.1.122')
 
 # instrumentation
 CONTENT_TYPE_LATEST = str('text/plain; version=0.0.4; charset=utf-8')
-SENSOR_SAMPLES = Counter('maui_water_samples_submitted', 'Number of samples processed')
+SENSOR_SAMPLES = Counter('maui_water_samples_submitted', 'Number of samples processed',['meter_id'])
 WATER_METER_READING = Gauge('maui_water_meter_reading', 'Reading of the water meter')
 INFLUXDB_SUBMIT_DURATION = Summary('maui_water_influxdb_operation_duration',
                            'Latency of submitting to InfluxDB',['operation'])
@@ -141,10 +141,11 @@ while True:
     log.debug('Response: {}'.format(response))
     if response is not None:
         try:
-            SENSOR_SAMPLES.inc()
+
             message = response['Messages'][0]
             elements = message['Body'].split(',')
-
+            label_dict = {"meter_id": elements[3]}
+            SENSOR_SAMPLES.labels(**label_dict).inc()
             if elements[3] == '33228599':
                 parse(elements[7])
             log.debug("Received meter reading for: {}".format(elements[7]))
