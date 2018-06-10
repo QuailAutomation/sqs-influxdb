@@ -136,7 +136,7 @@ while True:
         MessageAttributeNames=[
             'All'
         ],
-        WaitTimeSeconds=60
+        WaitTimeSeconds=20
     )
     log.debug('Response: {}'.format(response))
     if response is not None:
