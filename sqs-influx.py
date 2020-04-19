@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import logging
 import os
 import time
-import thread
+import _thread as thread
 from influxdb import InfluxDBClient
 from flask import Flask, Response
 from prometheus_client import Summary, Counter, Gauge, generate_latest
