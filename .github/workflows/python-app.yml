@@ -67,24 +67,6 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.prep.outputs.tags }}
       
-
-
-
-
-      # -
-      #   name: Set up Docker Buildx
-      #   id: buildx
-      #   uses: docker/setup-buildx-action@v1
-
-      # - name: Build and publish image
-      #   uses: ilteoood/docker_buildx@master
-      #   with:
-      #     publish: true
-      #     imageName: craigham/fantasy-bot
-      #     dockerUser: ${{ secrets.docker_hub_username }}
-      #     dockerPassword: ${{ secrets.docker_hub_password }}
-      #     tag: 0.1.$GITHUB_RUN_NUMBER,latest
-           
       - name: Slack Notification
         uses: 8398a7/action-slack@v3
         with:
