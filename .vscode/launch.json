@@ -8,7 +8,7 @@
             "name": "Python: Current File",
             "type": "python",
             "env": {
-                "DELETE_RECEIVED_SQS": "False",
+                "DELETE_RECEIVED_SQS": "False"
               },
             "request": "launch",
             "program": "${file}",

@@ -76,7 +76,7 @@ def parse(line):
         log.debug ('items: {0}'.format(items))
         points = result.get_points()
         log.debug ('points: {0}'.format(points))
-        first_point = points.next()
+        first_point = next(points)
         log.debug('first point: {0}'.format(first_point))
         previous_value = first_point["value"]
         log.debug ('recent value: ' + str(previous_value))
