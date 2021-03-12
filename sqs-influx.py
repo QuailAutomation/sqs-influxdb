@@ -8,7 +8,7 @@ from flask import Flask, Response
 from prometheus_client import Summary, Counter, Gauge, generate_latest
 import boto3
 
-log = logging.getLogger(__name__)
+
 
 # if gelf url is set and graypy import avail let's log there
 try:
@@ -22,7 +22,9 @@ try:
 except ImportError:
     logging.basicConfig(level=logging.DEBUG)
 
-log.setLevel(os.getenv('LOG_LEVEL', logging.INFO))
+logging.setLevel(os.getenv('LOG_LEVEL', logging.INFO))
+
+log = logging.getLogger(__name__)
 log.debug("Starting sqs to influx")
 
 
