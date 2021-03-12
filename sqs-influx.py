@@ -12,6 +12,8 @@ import boto3
 log = logging.getLogger()
 logging_level = os.getenv('LOG_LEVEL', logging.INFO)
 # TODO set boto logger to match
+# logging.getLogger("botocore").setLevel(logging_level)
+
 
 # if gelf url is set and graypy import avail let's log there
 try:
