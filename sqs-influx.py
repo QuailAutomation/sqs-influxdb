@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 import os
 import time
@@ -17,15 +17,20 @@ try:
     if gelf_url is not None:
         handler = graypy.GELFHandler(gelf_url, 12201, localname='water-sqs-influx')
         log.addHandler(handler)
+    else:
+        logging.basicConfig(level=logging.DEBUG)
 except ImportError:
     logging.basicConfig(level=logging.DEBUG)
 
-log.setLevel(logging.DEBUG)
+
 log.debug("Starting sqs to influx")
 
 
 influx_url = os.getenv('INFLUX_IP', '192.168.1.122')
+log.debug(f"Influx ip: {influx_url}")
 
+delete_received_sqs = os.getenv('DELETE_RECEIVED_SQS', True)
+log.debug(f"Deleting received sqs messages: {delete_received_sqs}")
 # instrumentation
 CONTENT_TYPE_LATEST = str('text/plain; version=0.0.4; charset=utf-8')
 SENSOR_SAMPLES = Counter('maui_water_samples_submitted', 'Number of samples processed',['meter_id'])
@@ -151,12 +156,12 @@ while True:
             log.debug("Received meter reading for: {}".format(elements[3]))
             receipt_handle = message['ReceiptHandle']
 
-
-            # Delete received message from queue
-            sqs.delete_message(
-                QueueUrl=queue_url,
-                ReceiptHandle=receipt_handle
-            )
+            if delete_received_sqs:
+                # Delete received message from queue
+                sqs.delete_message(
+                    QueueUrl=queue_url,
+                    ReceiptHandle=receipt_handle
+                )
         except KeyError:
             pass
         except Exception as e:

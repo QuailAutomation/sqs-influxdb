@@ -1,33 +1,28 @@
-FROM apicht/rpi-golang:latest
-#FROM armv7/armhf-ubuntu 
-MAINTAINER craig
+FROM python:3.8-slim AS compile-image
+RUN apt-get update
+RUN apt-get install -y --no-install-recommends build-essential gcc git libxml2 libxslt-dev
 
-ARG git_commit
-ARG version
+RUN python -m venv /opt/venv
+# Make sure we use the virtualenv:
+ENV PATH="/opt/venv/bin:$PATH"
 
-RUN apt-get update && apt-get install -y \
-    python2.7 \
-    python-pip \
-    gcc \
-    --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 
-# Install Python requirements
-ADD requirements.txt /tmp/requirements.txt
-RUN pip install -r /tmp/requirements.txt
-# Create runtime user
-RUN useradd pi
-RUN mkdir -p /home/pi
-ADD sqs-influx.py /home/pi/sqs-influx.py
-#RUN mkdir -p /home/pi/.aws
-#ADD config /home/pi/.aws/config
+FROM python:3.8-slim AS build-image
 
-USER pi
+COPY --from=compile-image /opt/venv /opt/venv
 
-LABEL git-commit=$git_commit
-LABEL version=$version
+ENV PATH="/opt/venv/bin:$PATH"
+WORKDIR /app
+COPY sqs-influx.py .
 
 EXPOSE 5000
 
-CMD ["python","/home/pi/sqs-influx.py"]
+CMD ["python","sqs-influx.py"]
+
+
+
+
+
