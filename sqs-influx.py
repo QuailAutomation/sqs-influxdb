@@ -9,7 +9,7 @@ from prometheus_client import Summary, Counter, Gauge, generate_latest
 import boto3
 
 
-
+log = logging.getLogger()
 # if gelf url is set and graypy import avail let's log there
 try:
     import graypy
@@ -18,13 +18,11 @@ try:
         handler = graypy.GELFHandler(gelf_url, 12201, localname='water-sqs-influx')
         log.addHandler(handler)
     else:
-        logging.basicConfig(level=logging.DEBUG)
+        logging.basicConfig(level=os.getenv('LOG_LEVEL', logging.INFO))
 except ImportError:
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=os.getenv('LOG_LEVEL', logging.INFO))
 
-logging.setLevel(os.getenv('LOG_LEVEL', logging.INFO))
 
-log = logging.getLogger(__name__)
 log.debug("Starting sqs to influx")
 
 
