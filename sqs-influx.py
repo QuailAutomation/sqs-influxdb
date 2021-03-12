@@ -10,6 +10,9 @@ import boto3
 
 
 log = logging.getLogger()
+logging_level = os.getenv('LOG_LEVEL', logging.INFO)
+# TODO set boto logger to match
+
 # if gelf url is set and graypy import avail let's log there
 try:
     import graypy
@@ -18,9 +21,9 @@ try:
         handler = graypy.GELFHandler(gelf_url, 12201, localname='water-sqs-influx')
         log.addHandler(handler)
     else:
-        logging.basicConfig(level=os.getenv('LOG_LEVEL', logging.INFO))
+        logging.basicConfig(level=logging_level)
 except ImportError:
-    logging.basicConfig(level=os.getenv('LOG_LEVEL', logging.INFO))
+    logging.basicConfig(level=logging_level)
 
 
 log.debug("Starting sqs to influx")
