@@ -22,7 +22,7 @@ try:
 except ImportError:
     logging.basicConfig(level=logging.DEBUG)
 
-
+log.setLevel(os.getenv('LOG_LEVEL', logging.INFO))
 log.debug("Starting sqs to influx")
 
 
