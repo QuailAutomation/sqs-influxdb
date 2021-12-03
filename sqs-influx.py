@@ -3,17 +3,17 @@ import logging
 import os
 import time
 import _thread as thread
-from influxdb import InfluxDBClient
+import influxdb_client
+from influxdb_client import Point
+from influxdb_client.client.write_api import SYNCHRONOUS
+
 from flask import Flask, Response
 from prometheus_client import Summary, Counter, Gauge, generate_latest
 import boto3
 
 
 log = logging.getLogger()
-logging_level = os.getenv('LOG_LEVEL', logging.INFO)
-# TODO set boto logger to match
-# logging.getLogger("botocore").setLevel(logging_level)
-
+logging_level = os.getenv('LOG_LEVEL', logging.DEBUG)
 
 # if gelf url is set and graypy import avail let's log there
 try:
@@ -31,8 +31,8 @@ except ImportError:
 log.debug("Starting sqs to influx")
 
 
-influx_url = os.getenv('INFLUX_IP', '192.168.1.122')
-log.debug(f"Influx ip: {influx_url}")
+
+
 
 delete_received_sqs = os.getenv('DELETE_RECEIVED_SQS', True)
 log.debug(f"Deleting received sqs messages: {delete_received_sqs}")
@@ -56,60 +56,66 @@ def get_secret(secret_name):
 
 access_key_id = get_secret('aws_access_key_id') or os.getenv('aws_access_key_id')
 secret_access_key = get_secret('aws_secret_access_key') or os.getenv('aws_secret_access_key')
-influx_waterdb_user = get_secret('influx_waterdb_user') or os.getenv('influx_waterdb_user')
-influx_waterdb_password = get_secret('influx_waterdb_password') or os.getenv('influx_waterdb_password')
+
+influx_waterdb_token = get_secret('influx_waterdb_token') or os.getenv('influx_waterdb_token')
+water_sqs_influxdb_org = get_secret('water_sqs_influxdb_org') or os.getenv('water_sqs_influxdb_org')
+water_sqs_influxdb_bucket = get_secret('water_sqs_influxdb_bucket') or os.getenv('water_sqs_influxdb_bucket')
+water_sqs_influxdb_url = get_secret('water_sqs_influxdb_url') or os.getenv('water_sqs_influxdb_url')
+log.debug(f"Influx ip: {water_sqs_influxdb_url}")
+
+queue_url = 'https://sqs.us-west-2.amazonaws.com/845159206739/sensors-maui-water.fifo'
 
 lastWriteMap = {}
-influx_client = InfluxDBClient(influx_url, 8086, influx_waterdb_user,influx_waterdb_password, 'water_readings')
 
+influx_client = influxdb_client.InfluxDBClient(url=water_sqs_influxdb_url, token=influx_waterdb_token,org=water_sqs_influxdb_org)
+buckets_api = influx_client.buckets_api()
+query_api = influx_client.query_api()
+write_api = influx_client.write_api()
+# lets see if we have bucket 'water'
+water_bucket = next((bucket for bucket in buckets_api.find_buckets().buckets if bucket.name == water_sqs_influxdb_bucket), None)
+if water_bucket == None:
+    # create the bucket
+    log.info("'water' bucket not found, creating...")
+    water_bucket = buckets_api.create_bucket(bucket_name=water_sqs_influxdb_bucket,org=water_sqs_influxdb_org)
 
-def parse(line):
-    log.debug('Received line: ' + line)
-    current_value = int(line)
+def parse(value, reading_ts):
+    log.debug(f'Received reading: {value}')
+    current_value = int(value)
     WATER_METER_READING.set(current_value)
     now = datetime.utcnow()
     # should look up most recent reading
-    query = 'SELECT * FROM water_usage GROUP BY * order by desc LIMIT 1'
+    # query = 'SELECT * FROM water_usage GROUP BY * order by desc LIMIT 1'
 
     startTime = time.time()
-    result = influx_client.query(query)
+    current_reading_dt = datetime.fromtimestamp(reading_ts)
+    # result = influx_client.query(query)
+    
+    query = f'from(bucket: "water")\
+        |> range(start: 0, stop: {reading_ts})\
+        |> filter(fn: (r) => r["_measurement"] == "water_usage")\
+        |> filter(fn: (r) => r["_field"] == "value")\
+        |> last()'
+    
+    result = query_api.query(org=water_sqs_influxdb_org, query=query)
+
     INFLUXDB_SUBMIT_DURATION.labels(operation="select").observe(time.time() - startTime)
     time_format = "%Y-%m-%dT%H:%M:%S"
-    if len(result) > 0:
-        log.debug("last reading is: {0}".format(result))
-        items = result.items()
-        log.debug ('items: {0}'.format(items))
-        points = result.get_points()
-        log.debug ('points: {0}'.format(points))
-        first_point = next(points)
-        log.debug('first point: {0}'.format(first_point))
-        previous_value = first_point["value"]
-        log.debug ('recent value: ' + str(previous_value))
-        recent_time = datetime.strptime(first_point["time"][:19],time_format)
-        log.debug ('recent time: {0}'.format(recent_time))
-        log.debug('Elapsed time: {0}'.format(int((now - recent_time).total_seconds() // 60)))  # minutes
+    if len(result) == 1:
+        previous_value = result[0].records[0].get_value()
+        log.debug (f'last value: {previous_value}')
         usage = int(current_value-previous_value)
+        # we dont have guarantee of order, so only fill in usage if there is a prior reading
+        if usage < 0:
+            usage = 0
         log.debug('Value diff is: {0}'.format(usage))
     else:
         usage = int(0.0)
     try:
-        json_body = [
-            {
-                "measurement": "water_usage",
-                "tags": {
-                    "house": "64 w mahi pua",
-                    "meterid": 33228599
-                },
-                "fields": {
-                    "value": current_value,
-                    "time": now.strftime(time_format),
-                    "usage": usage
-                }
-            }
-        ]
-        log.debug('json to write: %s ' % json_body)
+        p = Point("water_usage").tag("house", "64 w mahi pua").field("value", current_value).field("usage",usage).time(datetime.fromtimestamp(reading_ts))
+
         startTime = time.time()
-        influx_client.write_points(json_body)
+        write_api.write(bucket=water_sqs_influxdb_bucket, record=p)
+        # influx_client.write_points(json_body)
         INFLUXDB_SUBMIT_DURATION.labels(operation="write").observe(time.time() - startTime)
         log.debug("write to influxdb")
     except ValueError as e:
@@ -118,7 +124,8 @@ def parse(line):
 # Create SQS client
 sqs = boto3.client('sqs',aws_access_key_id=access_key_id,aws_secret_access_key=secret_access_key,region_name='us-west-2')
 
-queue_url = 'https://sqs.us-west-2.amazonaws.com/845159206739/sensors-maui-water'
+
+
 log.debug("Listening to topic: {}".format(queue_url))
 
 app = Flask(__name__)
@@ -130,7 +137,7 @@ def metrics():
 
 
 def flask_thread():
-    app.run(host='0.0.0.0')
+    app.run(host='0.0.0.0',port=3001)
 
 thread.start_new_thread(flask_thread, ())
 
@@ -151,14 +158,14 @@ while True:
     log.debug('Response: {}'.format(response))
     if response is not None:
         try:
-
             message = response['Messages'][0]
             elements = message['Body'].split(',')
-            label_dict = {"meter_id": elements[3]}
+            label_dict = {"meter_id":'33228599'}
             SENSOR_SAMPLES.labels(**label_dict).inc()
-            if elements[3] == '33228599':
-                parse(elements[7])
-            log.debug("Received meter reading for: {}".format(elements[3]))
+            sent_ts = int(response['Messages'][0]['Attributes']['SentTimestamp'])/1000 # was in millis
+            dt_object = datetime.fromtimestamp(sent_ts)
+            parse(elements[0],int(sent_ts))
+            # log.debug("Received meter reading for: {}".format(elements[3]))
             receipt_handle = message['ReceiptHandle']
 
             if delete_received_sqs:
@@ -171,4 +178,5 @@ while True:
             pass
         except Exception as e:
             log.exception(e)
+    time.sleep(40)
     log.debug('Requesting another message')

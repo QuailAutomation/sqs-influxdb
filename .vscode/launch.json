@@ -5,10 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
+            "name": "Python: Current File-manager1-influxdb",
             "type": "python",
             "env": {
-                "DELETE_RECEIVED_SQS": "False"
+                "DELETE_RECEIVED_SQS": "False",
+                "water_sqs_influxdb_url": "192.168.1.211:8089",
+                "influx_waterdb_token": "testing_token",
+                "water_sqs_influxdb_bucket": "water",
+                "water_sqs_influxdb_org": "quail"
               },
             "request": "launch",
             "program": "${file}",
