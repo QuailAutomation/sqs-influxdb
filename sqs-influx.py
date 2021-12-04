@@ -59,9 +59,10 @@ secret_access_key = get_secret('aws_secret_access_key') or os.getenv('aws_secret
 
 influx_waterdb_token = get_secret('influx_waterdb_token') or os.getenv('influx_waterdb_token')
 water_sqs_influxdb_org = get_secret('water_sqs_influxdb_org') or os.getenv('water_sqs_influxdb_org')
-water_sqs_influxdb_bucket = get_secret('water_sqs_influxdb_bucket') or os.getenv('water_sqs_influxdb_bucket')
-water_sqs_influxdb_url = get_secret('water_sqs_influxdb_url') or os.getenv('water_sqs_influxdb_url')
+water_sqs_influxdb_bucket = get_secret('water_sqs_influxdb_bucket') or os.getenv('water_sqs_influxdb_bucket', default='water')
+water_sqs_influxdb_url = get_secret('water_sqs_influxdb_url') or os.getenv('water_sqs_influxdb_url', default="influxdb")
 log.debug(f"Influx ip: {water_sqs_influxdb_url}")
+
 
 queue_url = 'https://sqs.us-west-2.amazonaws.com/845159206739/sensors-maui-water.fifo'
 
