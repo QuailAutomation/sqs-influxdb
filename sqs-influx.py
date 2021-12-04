@@ -138,7 +138,7 @@ def metrics():
 
 
 def flask_thread():
-    app.run(host='0.0.0.0',port=3001)
+    app.run(host='0.0.0.0',port=5000)
 
 thread.start_new_thread(flask_thread, ())
 
