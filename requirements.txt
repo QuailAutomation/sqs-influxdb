@@ -1,5 +1,5 @@
 boto3==1.20.17
-influxdb-client==1.24.0
+influxdb-client==1.36.1
 graypy==2.1.0
 prometheus_client==0.12.0
 flask==2.0.2
